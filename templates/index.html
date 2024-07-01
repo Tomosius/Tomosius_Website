@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Falling Letters with Sidebar Menu</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Make the canvas fill the screen and display as a block element */
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1; /* Ensure the canvas is behind other content */
+        }
+        /* Container for the 3D effect */
+        .canvas-container {
+            transform-style: preserve-3d; /* Enable 3D space preservation */
+            transition: transform 0.5s; /* Smooth transition for transform changes */
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        /* Style for header and footer */
+        header, footer {
+            background: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
+            text-align: center;
+            padding: 1em 0;
+            position: relative;
+            z-index: 1; /* Ensure header and footer are above the canvas */
+        }
+        /* Custom styles for Bootstrap containers */
+        .content {
+            position: relative;
+            z-index: 1; /* Ensure content is above the canvas */
+            padding: 2em;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
+            margin-bottom: 1em;
+            border-radius: 0.5em;
+        }
+
+    </style>
+</head>
+<body>
+<div class="canvas-container">
+    <canvas id="c"></canvas>
+</div>
+
+<header class="container-fluid py-3 bg-light">
+    <h1>Matrix Falling Letters Effect</h1>
+</header>
+
+<div class="container flex-grow-1" style="margin-left: 200px;">
+    <div class="row">
+        <div class="col content my-3" id="home">
+            <h2>Welcome to the Matrix</h2>
+            <p>Experience the mesmerizing effect of falling letters with a color transition from green to purple and fading transparency from the center towards the edges.</p>
+        </div>
+        <div class="col content my-3" id="skills">
+            <h2>Skills</h2>
+            <p>This section highlights the various skills and technologies utilized to create this effect and other projects.</p>
+        </div>
+        <div class="col content my-3" id="projects">
+            <h2>Projects</h2>
+            <p>Explore more advanced animations and effects using HTML5 Canvas, JavaScript, and CSS to bring your web pages to life with interactive and engaging content.</p>
+        </div>
+        <div class="col content my-3" id="contact">
+            <h2>Contact</h2>
+            <p>Get in touch for collaborations, project inquiries, or more information about the work showcased here.</p>
+        </div>
+    </div>
+</div>
+
+<footer class="bg-light py-3 mt-auto">
+    <div class="container d-flex justify-content-center">
+        <div class="d-flex">
+            <a href="#home" class="text-decoration-none mx-2">Home</a>
+            <a href="#skills" class="text-decoration-none mx-2">Skills</a>
+            <a href="#projects" class="text-decoration-none mx-2">Projects</a>
+            <a href="#contact" class="text-decoration-none mx-2">Contact</a>
+        </div>
+    </div>
+</footer>
+
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+    // Initialize the canvas and its context
+    var c = document.getElementById("c");
+    var ctx = c.getContext("2d");
+
+    // Make the canvas full screen
+    c.height = window.innerHeight;
+    c.width = window.innerWidth;
+
+    // Characters for the matrix effect
+    var matrix = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
+    matrix = matrix.split(""); // Split the string into an array of characters
+
+    // Font size for the falling characters
+    var font_size = 15;
+    var columns = c.width / font_size; // Number of columns for the rain
+
+    // Array to store the y-coordinate of drops for each column
+    var drops = [];
+    for (var x = 0; x < columns; x++) {
+        drops[x] = 1;
+    }
+
+    // Depth of each column for 3D effect
+    var depths = [];
+    for (var x = 0; x < columns; x++) {
+        depths[x] = Math.random() * 1000; // Random depth between 0 and 1000
+    }
+
+    // Horizontal offset for the scrolling effect
+    var scrollOffset = 0;
+
+    /**
+     * Calculate the sine-based alpha value for fade effect based on horizontal position
+     * @param {number} xPos - The x-position of the character
+     * @return {number} The alpha value based on horizontal position
+     */
+    function calculateHorizontalAlpha(xPos) {
+        var centerX = c.width / 2;
+        var distanceFromCenterX = Math.abs(centerX - xPos);
+        var maxDistanceX = centerX;
+        var normalizedDistanceX = distanceFromCenterX / maxDistanceX;
+        return Math.sin(normalizedDistanceX * Math.PI / 2); // sin(0) at center, sin(90) at edges
+    }
+
+    /**
+     * Calculate the sine-based alpha value for fade effect based on vertical position
+     * @param {number} yPos - The y-position of the character
+     * @return {number} The alpha value based on vertical position
+     */
+    function calculateVerticalAlpha(yPos) {
+        var centerY = c.height / 2;
+        var distanceFromCenterY = Math.abs(centerY - yPos);
+        var maxDistanceY = centerY;
+        var normalizedDistanceY = distanceFromCenterY / maxDistanceY;
+        return Math.sin(normalizedDistanceY * Math.PI / 2); // sin(0) at center, sin(90) at edges
+    }
+
+    /**
+     * Interpolate between two colors
+     * @param {string} color1 - The start color in hex format
+     * @param {string} color2 - The end color in hex format
+     * @param {number} factor - The interpolation factor (0 to 1)
+     * @return {string} The interpolated color in rgba format
+     */
+    function interpolateColor(color1, color2, factor) {
+        var hexToRgb = function(hex) {
+            var bigint = parseInt(hex.slice(1), 16);
+            return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+        };
+        var rgb1 = hexToRgb(color1);
+        var rgb2 = hexToRgb(color2);
+        var result = rgb1.map((c, i) => c + factor * (rgb2[i] - c));
+        return `rgba(${result[0]}, ${result[1]}, ${result[2]}, 1)`;
+    }
+
+    // Start and end colors for the gradient
+    var startColor = "#00ff00"; // Green
+    var endColor = "#ff00ff"; // Purple
+
+    /**
+     * Handle the initial fill of the screen with falling characters
+     */
+    function initialFill() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.04)"; // Slightly fade the canvas
+        ctx.fillRect(0, 0, c.width, c.height);
+
+        for (var i = 0; i < drops.length; i++) {
+            var xPos = ((i + scrollOffset) * font_size) % c.width;
+            if (xPos < 0) xPos += c.width; // Wrap around for negative values
+            var yPos = drops[i] * font_size;
+            var factor = yPos / c.height; // Factor for interpolation (0 at top, 1 at bottom)
+            var interpolatedColor = interpolateColor(startColor, endColor, factor);
+
+            var alphaX = calculateHorizontalAlpha(xPos);
+            var alphaY = calculateVerticalAlpha(yPos);
+            var alpha = alphaX * alphaY; // Combine horizontal and vertical alphas
+
+            ctx.fillStyle = interpolatedColor.replace(/1\)$/, `${alpha})`); // Set character color with combined alpha
+            ctx.font = font_size + "px arial"; // Set font size and family
+            var text = matrix[Math.floor(Math.random() * matrix.length)];
+            ctx.fillText(text, xPos, yPos);
+
+            drops[i] += 2; // Move drop down
+            depths[i] += 2; // Move depth forward
+            if (depths[i] > 1000) {
+                depths[i] = 0; // Reset depth if it goes beyond maximum
+            }
+        }
+    }
+
+    /**
+     * Handle the continuous rain of characters after the initial fill
+     */
+    function continuousRain() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.04)"; // Slightly fade the canvas
+        ctx.fillRect(0, 0, c.width, c.height);
+
+        for (var i = 0; i < drops.length; i++) {
+            var xPos = ((i + scrollOffset) * font_size) % c.width;
+            if (xPos < 0) xPos += c.width; // Wrap around for negative values
+            var yPos = drops[i] * font_size;
+            var factor = yPos / c.height; // Factor for interpolation (0 at top, 1 at bottom)
+            var interpolatedColor = interpolateColor(startColor, endColor, factor);
+
+            var alphaX = calculateHorizontalAlpha(xPos);
+            var alphaY = calculateVerticalAlpha(yPos);
+            var alpha = alphaX * alphaY; // Combine horizontal and vertical alphas
+
+            ctx.fillStyle = interpolatedColor.replace(/1\)$/, `${alpha})`); // Set character color with combined alpha
+            ctx.font = font_size + "px arial"; // Set font size and family
+            var text = matrix[Math.floor(Math.random() * matrix.length)];
+            ctx.fillText(text, xPos, yPos);
+
+            // Reset drop position and depth if it reaches the bottom and a random condition is met
+            if (drops[i] * font_size > c.height && Math.random() > 0.975) {
+                drops[i] = 0;
+            }
+
+            drops[i]++; // Move drop down
+            depths[i] += 1; // Move depth forward
+            if (depths[i] > 1000) {
+                depths[i] = 0; // Reset depth if it goes beyond maximum
+            }
+        }
+    }
+
+    /**
+     * Start the animation
+     */
+    function startAnimation() {
+        var initialFillInterval = setInterval(initialFill, 20); // Initial fill animation
+
+        // Transition to continuous rain after initial fill
+        setTimeout(function() {
+            clearInterval(initialFillInterval); // Stop initial fill
+            setInterval(continuousRain, 35); // Start continuous rain
+        }, 2000); // Adjust the duration of the initial fill as needed
+    }
+
+    startAnimation(); // Start the animation
+
+    // Event listener to adjust the canvas size when the window is resized
+    window.addEventListener('resize', function() {
+        c.height = window.innerHeight;
+        c.width = window.innerWidth;
+        columns = c.width / font_size; // Recalculate number of columns
+        drops = []; // Reset drops array
+        depths = []; // Reset depths array
+        for (var x = 0; x < columns; x++) {
+            drops[x] = 1; // Initialize drops
+            depths[x] = Math.random() * 1000; // Initialize depths
+        }
+    });
+
+    // Event listener to handle scroll events for horizontal movement
+    window.addEventListener('wheel', function(event) {
+        if (event.deltaY < 0) {
+            scrollOffset -= 1; // Scroll left
+        } else {
+            scrollOffset += 1; // Scroll right
+        }
+    });
+</script>
+</body>
+</html>
